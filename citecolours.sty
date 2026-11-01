@@ -1,0 +1,151 @@
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{citecolours}[2025/09/08 Selective colouring of citations (biblatex)]
+
+\makeatletter
+
+% --- Dependencies ---
+\RequirePackage{pgfopts}
+\RequirePackage{xcolor}
+\RequirePackage{xpatch}
+
+% -- Ensure macros exist before pgfopts stores into them
+\providecommand\cc@sources{}%
+\providecommand\cc@rgb{12,127,172}%
+\providecommand\cc@colname{}%
+
+
+% --- Options ---
+\newif\ifccboldinline \ccboldinlinefalse   % default: inline fetstil (som nu)
+\newif\ifccboldbib    \ccboldbibtrue      % default: bib fetstil (som nu)
+
+\pgfkeys{
+  /citecolours/.is family,
+  /citecolours,
+  sources/.store in = \cc@sources,
+  sources = {},
+  rgb/.store in   = \cc@rgb,
+  rgb = {12,127,172},
+  color/.store in = \cc@colname,
+  color = ,
+  % Nya separata bools
+  inlinebold/.is if = ccboldinline,
+  inlinebold = false,
+  bibbold/.is if    = ccboldbib,
+  bibbold = true,
+  % Bakåtkompatibel alias: bold=true/false sätter båda
+  bold/.code = {%
+    \pgfkeysalso{/citecolours/inlinebold=#1}%
+    \pgfkeysalso{/citecolours/bibbold=#1}%
+  },
+}
+
+\ProcessPgfOptions{/citecolours}
+% --- Fallbacks: se till att makron finns ---
+\providecommand\cc@sources{}%
+\providecommand\cc@rgb{12,127,172}%
+\providecommand\cc@colname{}%
+% Publikt namn utan @ för körningstid
+\providecommand\ccColorName{citecolour}
+
+% --- Colour definition (always define, optionally override) ---
+\definecolor{citecolour}{RGB}{\cc@rgb} % basfärg finns alltid
+
+% Om användaren har angett en namngiven färg/uttryck i optionen `color=...`,
+% överstyr basfärgen. Om tomt (eller bara blanks): gör inget.
+\if\relax\detokenize\expandafter{\cc@colname}\relax
+  % tomt – behåll RGB-basen
+\else
+  \colorlet{citecolour}{\cc@colname}%
+\fi
+
+% Publikt namn utan @ för körningstid
+\providecommand\ccColorName{citecolour}
+
+% --- Biblatex presence (warn only) ---
+\makeatletter
+\@ifpackageloaded{biblatex}{}{%
+  \PackageWarningNoLine{citecolours}{biblatex not loaded; package will be inert}%
+}
+\makeatother
+
+% --- Marked entries category ---
+\DeclareBibliographyCategory{cc@marked}
+
+% --- Koppla in källor från paketoptionen till kategorin ---
+\makeatletter
+\AtBeginDocument{%
+  \@ifpackageloaded{biblatex}{%
+    \edef\cc@tmp{\cc@sources}%
+    \ifx\cc@tmp\@empty\else
+      \addtocategory{cc@marked}{\cc@tmp}%
+    \fi
+  }{}%
+}
+\makeatother
+
+
+% --- In-text citations ---
+\AtEveryCitekey{% 
+  \ifcategory{cc@marked}{\color{\ccColorName}\ifccboldinline\bfseries\else\mdseries\fi}{}%
+}
+
+% --- Bibliography entries ---
+% Append to begentry so marked sources regain colour after biblatex restores field colours.
+\makeatletter
+\@ifpackageloaded{biblatex}{%
+  \xapptobibmacro{begentry}{%
+      \ifcategory{cc@marked}{%
+        \color{\ccColorName}\ifccboldbib\bfseries\else\mdseries\fi
+        \@ifclassloaded{beamer}{%
+          \setbeamercolor{bibliography item}{fg=\ccColorName}%
+          \setbeamercolor{bibliography entry author}{fg=\ccColorName}%
+          \setbeamercolor{bibliography entry title}{fg=\ccColorName}%
+          \setbeamercolor{bibliography entry location}{fg=\ccColorName}%
+          \setbeamercolor{bibliography entry note}{fg=\ccColorName}%
+          \setbeamerfont{bibliography entry title}{series=\ifccboldbib\bfseries\else\mdseries\fi}%
+        }{}%
+      }{}%
+    }{}{}%
+  }{%
+    \AtBeginDocument{% 
+    \xapptobibmacro{begentry}{%
+        \ifcategory{cc@marked}{%
+          \color{\ccColorName}\ifccboldbib\bfseries\else\mdseries\fi
+          \@ifclassloaded{beamer}{%
+            \setbeamercolor{bibliography item}{fg=\ccColorName}%
+            \setbeamercolor{bibliography entry author}{fg=\ccColorName}%
+            \setbeamercolor{bibliography entry title}{fg=\ccColorName}%
+            \setbeamercolor{bibliography entry location}{fg=\ccColorName}%
+            \setbeamercolor{bibliography entry note}{fg=\ccColorName}%
+            \setbeamerfont{bibliography entry title}{series=\ifccboldbib\bfseries\else\mdseries\fi}%
+          }{}%
+        }{}%
+      }{}{}%
+    }%
+  }
+\makeatother
+
+
+% --- Space before title (fixes ".Title" bug in beamer while keeping period) ---
+\makeatletter
+\@ifclassloaded{beamer}{%
+  \@ifpackageloaded{biblatex}{%
+    % Add a space before title fields without changing existing punctuation
+    \xpretobibmacro{title}{\addspace}{}{}%
+    \xpretobibmacro{title+subtitle}{\addspace}{}{}%
+  }{%
+    % If biblatex isn't loaded yet, patch at \begin{document}
+    \AtBeginDocument{%
+      \xpretobibmacro{title}{\addspace}{}{}%
+      \xpretobibmacro{title+subtitle}{\addspace}{}{}%
+    }%
+  }%
+}{}%
+\makeatother
+
+
+% --- Helpers ---
+\newcommand*\addcolouredsource[1]{\addtocategory{cc@marked}{#1}}
+\newcommand*\removecolouredsource[1]{\removefromcategory{cc@marked}{#1}}
+
+\makeatother

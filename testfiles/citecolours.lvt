@@ -1,0 +1,11 @@
+\input regression-test.tex\relax
+\documentclass{article}
+\usepackage[backend=biber,style=authoryear]{biblatex}
+\usepackage[sources={x},rgb={0,0,255}]{citecolours}
+\begin{document}
+\START
+\TEST{colour name}{\csname ccColorName\endcsname}
+\TEST{helpers}{%
+  \ifdefined\addcolouredsource\TRUE\else\FALSE\fi
+  \ifdefined\removecolouredsource\TRUE\else\FALSE\fi}
+\end{document}
